@@ -40,6 +40,8 @@
       }
 
       header {
+        grid-area: header;
+
         background: silver;
         padding: 2px;
 
@@ -54,16 +56,83 @@
       }
 
       main {
+        grid-area: main;
+
         padding: 16px;
       }
 
       footer {
+        grid-area: footer;
+
         background: silver;
         padding: 4px;
       }
 
       #container {
         border: 1px solid #808080;
+        display: grid;
+        grid-template-areas:
+          "header header header"
+          "aside main main"
+          "footer footer footer";
+      }
+
+      aside {
+        grid-area: aside;
+
+        background: silver;
+        width: 52px;
+        padding-top: 2px;
+
+        nav {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1px;
+          justify-content: center;
+        }
+
+        button {
+          width: 24px;
+          height: 24px;
+
+          background: #bdbdbd url("./icons/draw.png") no-repeat center;
+
+          border: 1.7px solid #eee;
+          border-right-color: #000;
+          border-bottom-color: #000;
+
+          &.active {
+            border-color: #000;
+            border-right-color: #eee;
+            border-bottom-color: #eee;
+          }
+
+          &[disabled] {
+            pointer-events: none;
+            opacity: 0.5;
+          }
+        }
+      }
+
+      #erase-btn {
+        background-image: url("./icons/erase.png");
+      }
+
+      #rectangle-btn {
+        background-image: url("./icons/rectangle.png");
+      }
+
+      #ellipse-btn {
+        background-image: url("./icons/ellipse.png");
+      }
+
+      #picker-btn {
+        background-image: url("./icons/picker.png");
+      }
+
+      #clear-btn {
+        background-image: url("./icons/trash.png");
+        background-size: 18px;
       }
     </style>
     <script type="module">
@@ -74,6 +143,7 @@
         RECTANGLE: "rectangle",
         ELLIPSE: "ellipse",
         PICKER: "picker",
+        CLEAR: "clear",
       };
 
       // UTILITIES
@@ -83,15 +153,22 @@
       // ELEMENTS
       const $canvas = $("#canvas");
       const $colorPicker = $("#color-picker");
+      const $clearBtn = $("#clear-btn");
+      const $drawBtn = $("#draw-btn");
+      const $rectangleBtn = $("#rectangle-btn");
+      const $eraseBtn = $("#erase-btn");
+      const $pickerBtn = $("#picker-btn");
 
       const ctx = $canvas.getContext("2d");
 
       // STATE
+      let isShiftPressed = false;
       let isDrawing = false;
       let startX, startY;
       let lastX = 0;
       let lastY = 0;
       let mode = MODES.DRAW;
+      let imageData;
 
       // EVENT LISTENERS
       $canvas.addEventListener("mousedown", startDrawing);
@@ -99,7 +176,31 @@
       $canvas.addEventListener("mouseup", stopDrawing);
       $canvas.addEventListener("mouseleave", stopDrawing);
 
-      $colorPicker.addEventListener('change', handleChangeColor)
+      $colorPicker.addEventListener("change", handleChangeColor);
+      $clearBtn.addEventListener("click", clearCanvas);
+
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("keyup", handleKeyUp);
+
+      $pickerBtn.addEventListener("click", () => {
+        setMode(MODES.PICKER);
+      });
+
+      $eraseBtn.addEventListener("click", () => {
+        setMode(MODES.ERASE);
+      });
+
+      $rectangleBtn.addEventListener("click", () => {
+        setMode(MODES.RECTANGLE);
+      });
+
+      $drawBtn.addEventListener("click", () => {
+        setMode(MODES.DRAW);
+      });
+
+      $clearBtn.addEventListener("click", () => {
+        setMode(MODES.CLEAR);
+      });
 
       // METHODS
 
@@ -111,6 +212,8 @@
         // guardar las coordenadas iniciales usamos la destructuración
         [startX, startY] = [offsetX, offsetY];
         [lastX, lastY] = [offsetX, offsetY];
+
+        imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       }
 
       function draw(event) {
@@ -118,28 +221,123 @@
 
         const { offsetX, offsetY } = event;
 
-        // comenzar un trazado
-        ctx.beginPath();
+        if (mode === MODES.DRAW || mode === MODES.ERASE) {
+          // comenzar un trazado
+          ctx.beginPath();
 
-        // mover el trazado a las coordenadas actuales
-        ctx.moveTo(lastX, lastY);
+          // mover el trazado a las coordenadas actuales
+          ctx.moveTo(lastX, lastY);
 
-        // dibujar una linea entre las coordenadas anteriores y las actuales
-        ctx.lineTo(offsetX, offsetY);
+          // dibujar una linea entre las coordenadas anteriores y las actuales
+          ctx.lineTo(offsetX, offsetY);
 
-        ctx.stroke();
+          ctx.stroke();
 
-        // actualizar las ultimas coordenadas 
-        [lastX, lastY] = [offsetX, offsetY];
+          // actualizar las ultimas coordenadas
+          [lastX, lastY] = [offsetX, offsetY];
+        }
+
+        if (mode === MODES.RECTANGLE) {
+          ctx.putImageData(imageData, 0, 0);
+
+          let width = offsetX - startX;
+          let height = offsetY - startY;
+
+          if (isShiftPressed) {
+            const sideLength = Math.min(Math.abs(width), Math.abs(height));
+
+            width = width > 0 ? sideLength : -sideLength;
+            height = height > 0 ? sideLength : -sideLength;
+          }
+
+          ctx.beginPath();
+          ctx.rect(startX, startY, width, height);
+          ctx.stroke();
+          return;
+        }
       }
 
       function stopDrawing(event) {
         isDrawing = false;
       }
 
-      function handleChangeColor () {
-        const { value }= $colorPicker
-        ctx.strokeStyle = value
+      function handleChangeColor() {
+        const { value } = $colorPicker;
+        ctx.strokeStyle = value;
+      }
+
+      function clearCanvas() {
+        ctx.clearRect(0, 0, $canvas.width, $canvas.height);
+      }
+
+      async function setMode(newMode) {
+        let previousMode = mode;
+        mode = newMode;
+
+        $("button.active")?.classList.remove("active");
+
+        if (mode === MODES.DRAW) {
+          $drawBtn.classList.add("active");
+          canvas.style.cursor = "crosshair";
+          ctx.globalCompositeOperation = "source-over";
+          ctx.lineWidth = 2;
+          return;
+        }
+
+        if (mode === MODES.RECTANGLE) {
+          $rectangleBtn.classList.add("active");
+          canvas.style.cursor = "nwse-resize";
+          ctx.globalCompositeOperation = "source-over";
+          ctx.lineWidth = 2;
+          return;
+        }
+
+        if (mode === MODES.ERASE) {
+          $eraseBtn.classList.add("active");
+          canvas.style.cursor = 'url("./icons/erase.png") 0 24, auto';
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.lineWidth = 30;
+          return;
+        }
+
+        if (mode === MODES.CLEAR) {
+          $clearBtn.classList.add("active");
+          return;
+        }
+
+        if (mode === MODES.PICKER) {
+          $pickerBtn.classList.add("active");
+          const eyeDropper = new window.EyeDropper();
+
+          try {
+            const result = await eyeDropper.open();
+            const { sRGBHex } = result;
+            ctx.strokeStyle = sRGBHex;
+            $colorPicker.value = sRGBHex;
+            setMode(previousMode);
+          } catch (e) {
+            // si ha habido un error o el usuario no ha seleccionado un color
+          }
+          return;
+        }
+      }
+
+      function handleKeyDown({ key }) {
+        isShiftPressed = key === "Shift";
+      }
+
+      function handleKeyUp({ key }) {
+        if (key === "Shift") {
+          isShiftPressed = false;
+        }
+      }
+
+      // INIT
+      setMode(MODES.DRAW);
+
+      // show picker if browser supports it
+      if (typeof window.EyeDropper !== "undefined") {
+        $pickerBtn.removeAttribute("disabled");
       }
     </script>
   </head>
@@ -159,6 +357,17 @@
         <button>Options</button>
         <button>Help</button>
       </header>
+
+      <aside>
+        <nav>
+          <button id="draw-btn" title="Pincel"></button>
+          <button id="erase-btn" title="Borrador"></button>
+          <button id="rectangle-btn" title="Rectángulo"></button>
+          <button id="ellipse-btn" title="Elipse"></button>
+          <button disabled id="picker-btn" title="Selector de color"></button>
+          <button id="clear-btn" title="Limpiar dibujo"></button>
+        </nav>
+      </aside>
 
       <main>
         <canvas id="canvas" width="300" height="200"></canvas>
