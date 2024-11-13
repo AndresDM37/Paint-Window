@@ -10,4 +10,4 @@ Desarrollé Paint.js, una aplicación de dibujo interactiva creada con JavaScrip
 
 ❎ Implementación de eventos de ratón para manejo preciso del dibujo en el lienzo (mousedown, mousemove, mouseup).
 
-https://paint-window-andev.netlify.app
+
