@@ -21,7 +21,7 @@
 
       h1 {
         color: #fce300;
-        font-size: 12px;
+        font-size: 1.5rem;
         font-weight: 600;
 
         display: flex;
@@ -75,6 +75,16 @@
           "header header header"
           "aside main main"
           "footer footer footer";
+      }
+
+      #text {
+        display: flex;
+        flex-direction: column;
+
+        h1 {
+          font-size: 1rem;
+          color: yellow;
+        }
       }
 
       aside {
@@ -339,11 +349,26 @@
       if (typeof window.EyeDropper !== "undefined") {
         $pickerBtn.removeAttribute("disabled");
       }
+
+      const text = "Por Andrés Marchena"
+      const speed = 100
+      let index = 0
+
+      function writingText() {
+        if (index < text.length) {
+          document.getElementById("text-move").innerHTML += text.charAt(index)
+          index++
+          setTimeout(writingText, speed)
+        }
+      }
+
+      writingText();
+      
     </script>
   </head>
 
   <body>
-    <h1>
+    <h1 id="title">
       <img src="./icons/icon.png" alt="Paint.js" />
       Paint.js
     </h1>
@@ -376,6 +401,11 @@
       <footer>
         <input type="color" id="color-picker" value="#000000" />
       </footer>
+    </div>
+
+    <div id="text">
+      <h1>Programa Realizado con JavaScript Vanilla</h1>
+      <h1 id="text-move"></h1>
     </div>
   </body>
 </html>
